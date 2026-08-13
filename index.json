@@ -12,7 +12,7 @@
       },
       "versions": {
         "1.7.1": {
-          "url": "https://k1ng0p.github.io/revenge-next-plugins/k1ngop.last-online-tracker.zip",
+          "url": "https://k1ng0p.github.io/revenge-next-plugins-by-k1ng/k1ngop.last-online-tracker.zip",
           "sha256": "cff1dae7e13a526339b55d5bbe0f7389649c5ebff6299d2f0c4d73a975622e2b",
           "size": 2646,
           "dependencies": {
@@ -36,7 +36,7 @@
       },
       "versions": {
         "1.0.0": {
-          "url": "https://k1ng0p.github.io/revenge-next-plugins/k1ngop.no-idle.zip",
+          "url": "https://k1ng0p.github.io/revenge-next-plugins-by-k1ng/k1ngop.no-idle.zip",
           "sha256": "848e65d5dd196f46ff86f6c4e27ab69e87782bda29e58e1dc92471838c666063",
           "size": 603,
           "dependencies": {
@@ -59,7 +59,7 @@
       },
       "versions": {
         "1.2.0": {
-          "url": "https://k1ng0p.github.io/revenge-next-plugins/k1ngop.platform-indicators.zip",
+          "url": "https://k1ng0p.github.io/revenge-next-plugins-by-k1ng/k1ngop.platform-indicators.zip",
           "sha256": "fb98012603e493b745518b64f5165f60e39ad7a4114d88c476c3ac4361f2dd8b",
           "size": 5902,
           "dependencies": {
