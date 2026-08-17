@@ -1,0 +1,19 @@
+{
+	"format": 1,
+	"id": "k1ngop.quest-completer",
+	"name": "Quest Completer",
+	"description": "Grind your Quests for you. Orb-style progress tracker with a toggle per quest type so you control exactly what gets automated.",
+	"author": "k1ng0p",
+	"version": "1.4.0",
+	"dependencies": {
+		"revenge.api": {
+			"version": ">=1 <2"
+		},
+		"discord": {
+			"version": "*"
+		}
+	},
+	"dist": {
+		"script": "index.js"
+	}
+}
