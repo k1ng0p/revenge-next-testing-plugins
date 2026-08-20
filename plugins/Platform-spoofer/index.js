@@ -236,7 +236,7 @@ function forceIdentify() {
 		}
 
 		if (ws && ws.readyState !== WebSocket.CLOSED && ws.readyState !== WebSocket.CLOSING) {
-			ws.close(1000);
+			ws.close();
 			pollBeforeConnect(300, 0);
 		} else if (!ws) {
 			socket.close();
@@ -409,12 +409,12 @@ function waitForSocketAndPatch() {
 			if (getPlatform() !== "off") forceIdentify();
 			return;
 		}
-		if (attempts > 50) {
+		if (attempts > 150) {
 			clearInterval(id);
 			untrackInterval(id);
 			log("gave up waiting for socket after", attempts, "attempts");
 		}
-	}, 200);
+	}, 50);
 	trackInterval(id);
 }
 
