@@ -1,6 +1,3 @@
-(function (e) {
-Object.defineProperty(e, Symbol.toStringTag, { value: "Module" });
-
 const { jsx, jsxs, Fragment } = revenge.react.ReactJSXRuntime;
 const { React, ReactNative } = revenge.react;
 const { getModules, filters } = revenge.modules.finders;
@@ -125,7 +122,7 @@ const WALK = { walkable: new Set(["props", "children"]) };
 const hasUser = (n) => n?.props?.user?.id !== undefined;
 const safely = (fn) => { try { fn(); } catch {} };
 
-e.default = plugin({
+export default plugin({
 	async start({ cleanup }) {
 		await settings.get();
 
@@ -254,6 +251,3 @@ e.default = plugin({
 	},
 	SettingsComponent: SettingsPage,
 });
-
-return e;
-})({})
