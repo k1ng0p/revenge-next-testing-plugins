@@ -36,7 +36,20 @@ val cleanTasks = Callable { rootProject.allprojects.mapNotNull { it.tasks.findBy
 // ---------------------------------------------------------------------------------------------
 
 @Suppress("UNCHECKED_CAST")
-fun parseJson(file: File) = JsonSlurper().parse(file) as Map<String, Any?>
+fun parseJson(file: File): Map<String, Any?>? {
+    return try {
+        JsonSlurper().parse(file) as? Map<String, Any?>
+    } catch (e: Exception) {
+        logger.error("Failed to parse JSON file: ${file.absolutePath}")
+        logger.error("Error: ${e.message}")
+        // Print the problematic content for debugging
+        try {
+            val content = file.readText()
+            logger.error("File content (first 500 chars):\n${content.take(500)}")
+        } catch (_: Exception) {}
+        null
+    }
+}
 
 @Suppress("UNCHECKED_CAST")
 fun Map<String, Any?>.obj(key: String) = this[key] as? Map<String, Any?>
@@ -49,10 +62,24 @@ val pluginDefs = file("plugins").listFiles().orEmpty()
     .filter(File::isDirectory)
     .sortedBy(File::getName)
     .mapNotNull { dir ->
-        val manifest = File(dir, "manifest.json").takeIf(File::isFile)?.let(::parseJson)
-            ?: return@mapNotNull null
-        val id = manifest.str("id") ?: return@mapNotNull null
-        val version = manifest.str("version") ?: return@mapNotNull null
+        val manifestFile = File(dir, "manifest.json")
+        if (!manifestFile.isFile) {
+            logger.warn("No manifest.json found in ${dir.name}, skipping...")
+            return@mapNotNull null
+        }
+        val manifest = parseJson(manifestFile)
+            ?: run {
+                logger.error("Skipping plugin ${dir.name} due to invalid manifest.json")
+                return@mapNotNull null
+            }
+        val id = manifest.str("id") ?: run {
+            logger.error("Plugin ${dir.name} missing 'id' in manifest.json, skipping...")
+            return@mapNotNull null
+        }
+        val version = manifest.str("version") ?: run {
+            logger.error("Plugin ${dir.name} missing 'version' in manifest.json, skipping...")
+            return@mapNotNull null
+        }
         val dist = manifest.obj("dist").orEmpty()
         PluginDef(dir, id, version, dist.obj("android")?.str("path"), dist.str("script"))
     }
