@@ -27,6 +27,12 @@ interface ExecOpsProvider {
 
 val rootExecOps = objects.newInstance<ExecOpsProvider>().execOps
 
+tasks.register<Delete>("clean") {
+    group = "build"
+    description = "Deletes the root build directory."
+    delete(layout.buildDirectory)
+}
+
 // `./gradlew clean packageAllPlugins` also runs every `:plugins:<name>:clean`,
 // which would delete freshly built artifacts mid-build; the tasks below `mustRunAfter` these.
 val cleanTasks = Callable { rootProject.allprojects.mapNotNull { it.tasks.findByName("clean") } }
@@ -36,50 +42,29 @@ val cleanTasks = Callable { rootProject.allprojects.mapNotNull { it.tasks.findBy
 // ---------------------------------------------------------------------------------------------
 
 @Suppress("UNCHECKED_CAST")
-fun parseJson(file: File): Map<String, Any?>? {
-    return try {
-        JsonSlurper().parse(file) as? Map<String, Any?>
-    } catch (e: Exception) {
-        logger.error("Failed to parse JSON file: ${file.absolutePath}")
-        logger.error("Error: ${e.message}")
-        // Print the problematic content for debugging
-        try {
-            val content = file.readText()
-            logger.error("File content (first 500 chars):\n${content.take(500)}")
-        } catch (_: Exception) {}
-        null
-    }
-}
+fun parseJson(file: File) = JsonSlurper().parse(file) as Map<String, Any?>
 
 @Suppress("UNCHECKED_CAST")
 fun Map<String, Any?>.obj(key: String) = this[key] as? Map<String, Any?>
 
 fun Map<String, Any?>.str(key: String) = this[key] as? String
 
-data class PluginDef(val dir: File, val id: String, val version: String?, val jarName: String?, val scriptName: String?)
+data class PluginDef(
+    val dir: File,
+    val id: String,
+    val version: String,
+    val jarName: String?,
+    val scriptName: String?,
+)
 
 val pluginDefs = file("plugins").listFiles().orEmpty()
     .filter(File::isDirectory)
     .sortedBy(File::getName)
     .mapNotNull { dir ->
-        val manifestFile = File(dir, "manifest.json")
-        if (!manifestFile.isFile) {
-            logger.warn("No manifest.json found in ${dir.name}, skipping...")
-            return@mapNotNull null
-        }
-        val manifest = parseJson(manifestFile)
-            ?: run {
-                logger.error("Skipping plugin ${dir.name} due to invalid manifest.json")
-                return@mapNotNull null
-            }
-        val id = manifest.str("id") ?: run {
-            logger.error("Plugin ${dir.name} missing 'id' in manifest.json, skipping...")
-            return@mapNotNull null
-        }
-        val version = manifest.str("version") ?: run {
-            logger.error("Plugin ${dir.name} missing 'version' in manifest.json, skipping...")
-            return@mapNotNull null
-        }
+        val manifest = File(dir, "manifest.json").takeIf(File::isFile)?.let(::parseJson)
+            ?: return@mapNotNull null
+        val id = manifest.str("id") ?: return@mapNotNull null
+        val version = manifest.str("version") ?: return@mapNotNull null
         val dist = manifest.obj("dist").orEmpty()
         PluginDef(dir, id, version, dist.obj("android")?.str("path"), dist.str("script"))
     }
@@ -101,8 +86,8 @@ data class JsTool(val kind: String, val exe: File) {
 
     val buildCommand: List<String>
         get() = when (kind) {
-            "bun" -> listOf(exe.absolutePath, "--bun", "run", "build")
             "npm" -> listOf(exe.absolutePath, "run", "build")
+            "bun" -> listOf(exe.absolutePath, "--bun", "run", "build")
             // Deno creates no node_modules/.bin shims, so `deno task build` cannot resolve the CLI,
             // so we run its bin file directly.
             "deno" -> listOf(
@@ -129,26 +114,22 @@ fun findJsTool(): JsTool? {
             add("/var/home/$user") // atomic/ostree distros: /home -> /var/home
         }
     }
-   val pathDirs = System.getenv("PATH").orEmpty().split(File.pathSeparator).filter(String::isNotEmpty)
-    val exeSuffixes = if (System.getProperty("os.name").startsWith("Windows", ignoreCase = true))
-        listOf("", ".exe", ".cmd", ".bat") else listOf("")
+    val pathDirs = System.getenv("PATH").orEmpty().split(File.pathSeparator).filter(String::isNotEmpty)
 
     fun candidatesFor(kind: String): List<File> = buildList {
-        pathDirs.forEach { dir -> exeSuffixes.forEach { suffix -> add(File(dir, kind + suffix)) } }
+        pathDirs.forEach { add(File(it, kind)) }
         when (kind) {
-            "bun" -> homes.forEach { home -> exeSuffixes.forEach { suffix -> add(File(home, ".bun/bin/bun$suffix")) } }
+            "bun" -> homes.forEach { add(File(it, ".bun/bin/bun")) }
             // nvm keeps npm next to node, under versions/node/<ver>/bin.
             "npm" -> homes.forEach { home ->
                 File(home, ".nvm/versions/node").listFiles()
                     ?.sortedDescending()
-                    ?.forEach { verDir -> exeSuffixes.forEach { suffix -> add(File(verDir, "bin/npm$suffix")) } }
+                    ?.forEach { add(File(it, "bin/npm")) }
             }
-            "deno" -> homes.forEach { home -> exeSuffixes.forEach { suffix -> add(File(home, ".deno/bin/deno$suffix")) } }
+            "deno" -> homes.forEach { add(File(it, ".deno/bin/deno")) }
         }
-        exeSuffixes.forEach { suffix ->
-            add(File("/usr/local/bin/$kind$suffix"))
-            add(File("/opt/homebrew/bin/$kind$suffix"))
-        }
+        add(File("/usr/local/bin/$kind"))
+        add(File("/opt/homebrew/bin/$kind"))
     }
 
     val kinds = kindOverride?.let(::listOf) ?: listOf("bun", "npm", "deno")
@@ -252,7 +233,7 @@ configure(subprojects.filter { it.path.startsWith(":plugins:") }) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// JS bundles (all plugins at once) and per-plugin packaging into build/dist/<id>.zip
+// JS bundles (all plugins at once) and per-plugin packaging into build/dist/<id>@<version>.zip
 // ---------------------------------------------------------------------------------------------
 
 val buildJs = tasks.register("buildJs") {
